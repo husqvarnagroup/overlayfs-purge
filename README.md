@@ -18,6 +18,25 @@ See [Overlayfs specification].
 [chattr(1)]: https://manpages.debian.org/stretch/e2fsprogs/chattr.1.en.html
 [setfacl(1)]: https://manpages.debian.org/stretch/acl/setfacl.1.en.html
 
+## Usage
+
+```
+overlayfs-purge -f [<keep-file> <keep-dir> <lower-dir> <upper-dir>]
+```
+
+The `-f` flag is required and must be passed to confirm you know what you are doing. It may appear anywhere in the argument list.
+
+When no positional arguments are given the tool uses the default paths:
+
+| Argument    | Default path                    |
+|-------------|---------------------------------|
+| `keep-file` | `/etc/sysupgrade.conf`          |
+| `keep-dir`  | `/usr/lib/upgrade/keep.d`       |
+| `lower-dir` | `/media/rfs/ro`                 |
+| `upper-dir` | `/media/rfs/rw/upperdir`        |
+
+All four positional arguments must be supplied together — partial overrides are not supported.
+
 ## Keeping Files
 
 This tool looks in the following config files for patterns:

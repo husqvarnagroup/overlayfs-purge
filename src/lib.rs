@@ -22,7 +22,7 @@ pub enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-pub fn run(keep_file: &Path, keep_dir: &Path, lower_dir: &Path, upper_dir: &Path) {
+pub fn run(keep_file: &Path, keep_dir: &Path, lower_dirs: &[&Path], upper_dir: &Path) {
     let patterns =
         load_keep_patterns(keep_file, keep_dir, upper_dir).expect("error loading config files");
     let glob_patterns = patterns
@@ -30,7 +30,7 @@ pub fn run(keep_file: &Path, keep_dir: &Path, lower_dir: &Path, upper_dir: &Path
         .map(|s| Pattern::new(s))
         .collect::<std::result::Result<Vec<_>, _>>()
         .expect("parsing pattern failed");
-    purge_upper_dir(lower_dir, upper_dir, &glob_patterns, upper_dir).expect("error while purging");
+    purge_upper_dir(lower_dirs, upper_dir, &glob_patterns, upper_dir).expect("error while purging");
 }
 
 fn load_keep_patterns(
@@ -81,14 +81,14 @@ fn read_keep_file(path: &Path) -> Result<impl Iterator<Item = String>> {
 }
 
 fn purge_upper_dir(
-    lower_dir: &Path,
+    lower_dirs: &[&Path],
     upper_dir: &Path,
     keep: &Vec<Pattern>,
     dir: &Path,
 ) -> Result<bool> {
     let mut remove_dir = true;
     for entry in dir.read_dir()? {
-        match handle_entry(lower_dir, upper_dir, keep, entry) {
+        match handle_entry(lower_dirs, upper_dir, keep, entry) {
             Ok(true) => (),
             Ok(false) => remove_dir = false,
             Err(e) => {
@@ -101,7 +101,7 @@ fn purge_upper_dir(
 }
 
 fn handle_entry(
-    lower_dir: &Path,
+    lower_dirs: &[&Path],
     upper_dir: &Path,
     keep: &Vec<Pattern>,
     entry: std::result::Result<fs::DirEntry, std::io::Error>,
@@ -135,13 +135,13 @@ fn handle_entry(
             println!("NOTICE: removing file: {stripped_path:?}");
             fs::remove_file(&path)?;
             return Ok(true);
-        } else if purge_upper_dir(lower_dir, upper_dir, keep, &path)? {
+        } else if purge_upper_dir(lower_dirs, upper_dir, keep, &path)? {
             println!("NOTICE: removing directory: {stripped_path:?}");
             fs::remove_dir(&path)?;
             return Ok(true);
         }
         println!("NOTICE: keeping implicitly: {stripped_path:?}");
-        copy_metadata(lower_dir, upper_dir, stripped_path)?;
+        copy_metadata(lower_dirs, upper_dir, stripped_path)?;
     }
 
     if filetype.is_file() || filetype.is_dir() {
@@ -151,12 +151,20 @@ fn handle_entry(
     Ok(false)
 }
 
-fn copy_metadata(lower_dir: &Path, upper_dir: &Path, stripped_path: &Path) -> Result<()> {
-    let lower_path = lower_dir.join(stripped_path);
+fn copy_metadata(lower_dirs: &[&Path], upper_dir: &Path, stripped_path: &Path) -> Result<()> {
+    // Find the first (highest-precedence) lower dir that contains this path,
+    // mirroring overlayfs lookup order.
+    let Some(lower_path) = lower_dirs
+        .iter()
+        .map(|d| d.join(stripped_path))
+        .find(|p| p.exists())
+    else {
+        // not found in any lower dir, nothing to copy
+        return Ok(());
+    };
     let upper_path = upper_dir.join(stripped_path);
 
     let Ok(lower_meta) = lower_path.metadata() else {
-        // lower file not found, nothing to copy
         return Ok(());
     };
     let upper_meta = upper_path.metadata()?;

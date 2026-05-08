@@ -5,7 +5,7 @@ fn run_purger() {
     run(
         Path::new("test-fixtures/integration_test/sysupgrade.conf"),
         Path::new("test-fixtures/integration_test/keep.d"),
-        Path::new("tmp/lowerdir"),
+        &[Path::new("tmp/lowerdir")],
         Path::new("tmp/upperdir"),
     );
 }

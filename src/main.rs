@@ -18,30 +18,31 @@ fn main() {
 
     let keep_file: PathBuf;
     let keep_dir: PathBuf;
-    let lower_dir: PathBuf;
+    let lower_dirs_raw: Vec<PathBuf>;
     let upper_dir: PathBuf;
 
     match positional.as_slice() {
         [] => {
             keep_file = PathBuf::from("/etc/sysupgrade.conf");
             keep_dir = PathBuf::from("/usr/lib/upgrade/keep.d");
-            lower_dir = PathBuf::from("/media/rfs/ro");
+            lower_dirs_raw = vec![PathBuf::from("/media/rfs/ro")];
             upper_dir = PathBuf::from("/media/rfs/rw/upperdir");
         }
         [kf, kd, ld, ud] => {
             keep_file = PathBuf::from(kf);
             keep_dir = PathBuf::from(kd);
-            lower_dir = PathBuf::from(ld);
+            lower_dirs_raw = ld.split(':').map(PathBuf::from).collect();
             upper_dir = PathBuf::from(ud);
         }
         _ => {
             eprintln!(
-                "Usage: {} [-f] [<keep-file> <keep-dir> <lower-dir> <upper-dir>]",
+                "Usage: {} [-f] [<keep-file> <keep-dir> <lower-dir>[:<lower-dir>...] <upper-dir>]",
                 args[0]
             );
             std::process::exit(1);
         }
     }
 
-    run(&keep_file, &keep_dir, &lower_dir, &upper_dir);
+    let lower_dirs: Vec<&std::path::Path> = lower_dirs_raw.iter().map(|p| p.as_path()).collect();
+    run(&keep_file, &keep_dir, &lower_dirs, &upper_dir);
 }

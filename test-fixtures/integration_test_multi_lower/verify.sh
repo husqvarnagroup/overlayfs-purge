@@ -3,11 +3,11 @@
 
 set -eux
 
-cd tmp/single_lower/upperdir
+cd tmp/multi_lower/upperdir
 
 # directories
 
-for x in dir_overlayed_keep dir_overlayed dir_opaque_keep dir_opaque dir_new_keep dir_new; do
+for x in dir_overlayed_keep dir_overlayed dir_opaque_keep dir_opaque dir_new_keep dir_new dir_lowerdir2_only; do
     test -d $x
 done
 
@@ -17,7 +17,7 @@ done
 
 # files
 
-for x in file_overlayed_keep file_new_keep dir_overlayed/file_keep dir_new/file_keep dir_opaque/file_keep; do
+for x in file_overlayed_keep file_new_keep dir_overlayed/file_keep dir_new/file_keep dir_opaque/file_keep dir_lowerdir2_only/file_keep; do
     test -f $x
 done
 
@@ -53,8 +53,12 @@ done
 
 # permissions and ownership
 
+# dir_overlayed: in lowerdir1 (1757/300:301) and lowerdir2 (750/500:501) — lowerdir1 wins
 test "$(stat -c "%a %u %g" dir_overlayed)" = "1757 300 301"
+# dir_new: not in any lower dir — upper metadata preserved
 test "$(stat -c "%a %u %g" dir_new)" = "1775 200 201"
+# dir_lowerdir2_only: only in lowerdir2 — lowerdir2 metadata is used
+test "$(stat -c "%a %u %g" dir_lowerdir2_only)" = "750 400 401"
 
 # extended attributes
 
